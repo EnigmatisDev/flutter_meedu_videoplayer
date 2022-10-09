@@ -50,6 +50,7 @@ class MeeduPlayerController {
   String? get errorText => _errorText;
   Widget? loadingWidget, header, bottomRight;
   final ControlsStyle controlsStyle;
+  bool? isLive = false;
   //final bool pipEnabled, showPipButton;
 
   String? tag;
@@ -215,21 +216,21 @@ class MeeduPlayerController {
   /// [placeholder] widget to show when the player is loading a video
   /// [controlsEnabled] if the player must show the player controls
   /// [errorText] message to show when the load process failed
-  MeeduPlayerController({
-    this.screenManager = const ScreenManager(),
-    this.colorTheme = Colors.redAccent,
-    Widget? loadingWidget,
-    this.controlsEnabled = true,
-    String? errorText,
-    this.controlsStyle = ControlsStyle.primary,
-    this.header,
-    this.bottomRight,
-    //this.pipEnabled = false,
-    //this.showPipButton = false,
-    this.customIcons = const CustomIcons(),
-    this.enabledButtons = const EnabledButtons(),
-    this.onVideoPlayerClosed,
-  }) {
+  MeeduPlayerController(
+      {this.screenManager = const ScreenManager(),
+      this.colorTheme = Colors.redAccent,
+      Widget? loadingWidget,
+      this.controlsEnabled = true,
+      String? errorText,
+      this.controlsStyle = ControlsStyle.primary,
+      this.header,
+      this.bottomRight,
+      //this.pipEnabled = false,
+      //this.showPipButton = false,
+      this.customIcons = const CustomIcons(),
+      this.enabledButtons = const EnabledButtons(),
+      this.onVideoPlayerClosed,
+      this.isLive}) {
     getUserPreferenceForFit();
 
     _errorText = errorText;
@@ -251,10 +252,14 @@ class MeeduPlayerController {
 
     _playerEventSubs = onPlayerStatusChanged.listen(
       (PlayerStatus status) {
-        if (status == PlayerStatus.playing) {
+        if (isLive == true) {
           Wakelock.enable();
         } else {
-          Wakelock.disable();
+          if (status == PlayerStatus.playing) {
+            Wakelock.enable();
+          } else {
+            Wakelock.disable();
+          }
         }
       },
     );
@@ -651,7 +656,8 @@ class MeeduPlayerController {
           }
           // check if the player has been finished
           if (_position.value.inSeconds >= duration.value.inSeconds &&
-              !playerStatus.stopped) {
+              !playerStatus.stopped &&
+              isLive != true) {
             playerStatus.status.value = PlayerStatus.stopped;
           }
         });
@@ -738,7 +744,8 @@ class MeeduPlayerController {
 
       // check if the player has been finished
       if (_position.value.inSeconds >= duration.value.inSeconds &&
-          !playerStatus.stopped) {
+          !playerStatus.stopped &&
+          isLive != true) {
         playerStatus.status.value = PlayerStatus.stopped;
       }
     }
@@ -793,7 +800,7 @@ class MeeduPlayerController {
         await _videoPlayerController!.initialize();
 
         if (oldController != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) async {
+          WidgetsBinding.instance!.addPostFrameCallback((_) async {
             oldController.removeListener(this._listener);
             await oldController
                 .dispose(); // dispose the previous video controller
@@ -1361,7 +1368,7 @@ class MeeduPlayerController {
     timerForTrackingMouse?.cancel();
     _timerForSeek?.cancel();
     videoFitChangedTimer?.cancel();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
+    WidgetsBinding.instance!.addPostFrameCallback((_) async {
       _position.value = Duration.zero;
       _timer?.cancel();
       pause();
